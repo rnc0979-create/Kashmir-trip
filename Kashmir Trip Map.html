@@ -1,0 +1,101 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kashmir Winter Delight - Trip Map</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+*{box-sizing:border-box}body{margin:0;font:15px/1.45 system-ui,sans-serif;background:#eaf0f3;color:#1c2a30}
+header{background:#0c3b34;color:#fff;padding:10px 14px}h1{margin:0;font-size:20px}header p{margin:2px 0 0;font-size:13px;opacity:.85}
+nav,#leg{display:flex;gap:6px;overflow-x:auto;padding:8px 10px;background:#fff;border-bottom:1px solid #d5dde1}
+nav button,#leg button{flex:none;border:1px solid #b8c4ca;background:#fff;border-radius:16px;padding:6px 12px;font:inherit;font-size:13px;color:inherit}
+nav .on{background:#0c3b34;color:#fff;border-color:#0c3b34}#leg .off{opacity:.4;text-decoration:line-through}
+main{display:grid;grid-template-columns:1fr}#map{height:55vh;order:1}#info{order:2;padding:12px;background:#fff}#list{order:3;padding:8px}
+@media(min-width:900px){main{grid-template-columns:300px 1fr 340px;height:calc(100vh - 150px)}#map{height:auto;order:2}#list{order:1;overflow:auto}#info{order:3;overflow:auto}}
+.card{display:flex;flex-direction:column;position:relative;background:#fff;border-radius:8px;padding:8px 10px 8px 24px;margin:6px 0;cursor:pointer;border:1px solid #d5dde1}
+.card i{position:absolute;left:9px;top:14px;width:9px;height:9px;border-radius:50%}.card small{color:#5b6b73}
+.pin{width:34px;height:34px;border-radius:50%;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 1px 5px #0006}.pin.opt{border:3px dashed #111}
+.tag{display:inline-block;color:#fff;background:#4a5a62;border-radius:10px;padding:1px 9px;font-size:12px}.tag.o{background:#6a1b9a}.tag.w{background:#c25b00}
+h2{margin:0 0 6px;font-size:18px}dt{font-weight:600;margin-top:8px}dd{margin:0}.note{font-size:13px;color:#a24f00}
+.btn{display:inline-block;margin:10px 6px 0 0;padding:9px 14px;border-radius:8px;background:#1a73e8;color:#fff;text-decoration:none;font-weight:600}.btn.alt{background:#0c3b34}
+footer{font-size:12px;color:#5b6b73;padding:10px 14px}
+</style></head><body>
+<header><h1>Kashmir Winter Delight</h1><p>28 Nov to 6 Dec 2026 · 6 adults · tap a pin or a card</p></header>
+<nav id="days"></nav><div id="leg"></div>
+<main><section id="list"></section><section id="map"></section><aside id="info"><p>Tap a pin or a card to see details. Dashed ring = optional.</p></aside></main>
+<footer>Map: OpenStreetMap, Esri, OpenTopoMap. Pins marked approximate may be a few hundred metres off, so use the Google button. Visit times are my estimates. Costs follow your quote; ask the agent for prices.</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const T={s:["Sightseeing","#1e88e5","📷"],h:["Hotel","#e53935","🏨"],f:["Food","#fb8c00","🍽"],a:["Activity","#8e24aa","🎿"],t:["Airport","#455a64","✈"]};
+const C={i:"Included in package",e:"Drive included, entry ticket extra",x:"Extra cost, not in package",c:"Unclear, confirm with agent"};
+const D=["All","1 Arrive","2 Sonmarg","3 Srinagar","4 Doodhpathri","5 Gulmarg","6 Houseboat","7 Pahalgam","8 Pahalgam","9 Airport"];
+// name,type,days,lat,lng,flags(o optional,p approx,w weather),google query,see,timing,cost
+let S=[
+["Srinagar Airport","t",[1,9],34.0087,74.7742,"","Srinagar International Airport","Pickup Day 1, drop Day 9 with your driver.","Day 9: Pahalgam to airport about 3 hrs. Keep a flight buffer.","i"],
+["Hotel Adlife Classic","h",[1,2,3,4],34.0837,74.7973,"p","Hotel Adlife Classic Srinagar","4 nights, breakfast and dinner. Can be swapped for a similar hotel.","Check-in and out as per hotel.","i"],
+["Houseboat: Dal View Resort or similar","h",[6],34.1,74.845,"p","Dal View Resort Srinagar","1 night on Dal or Nigeen Lake. Ask agent for the exact boat.","Arrive after Gulmarg drive. Dinner on board.","i"],
+["Hotel Mountain Majesty","h",[5,6],34.048,74.382,"p","Mountain Majesty Gulmarg","1 night. Can be swapped for similar. Coldest stay.","Check in Day 5. Free time Day 6 morning.","i"],
+["Hotel Kloof Orchards","h",[7,8,9],34.015,75.318,"p","Kloof Orchards Pahalgam","2 nights. Can be swapped for similar.","In Day 7, out Day 9 after breakfast.","i"],
+["Dal Lake","s",[1,6],34.11,74.86,"","Dal Lake Srinagar","Large lake with mountain views.","Day 1 evening, Day 6. About 1 hr.","i"],
+["Boulevard Road","s",[1,6],34.091,74.838,"p","Boulevard Road Dal Lake Srinagar","Scenic drive along the lake.","Day 1 evening. Day 6 if time.","i"],
+["Shankaracharya Temple","s",[1],34.0796,74.8418,"w","Shankaracharya Temple Srinagar","Hilltop temple. Hours and access can change.","Day 1 if time allows. About 1 hr.","e"],
+["Nishat Bagh","s",[1,3],34.1086,74.8736,"","Nishat Bagh Srinagar","Terraced Mughal garden facing the lake.","Day 3 (Day 1 if time). About 45 min.","e"],
+["Shalimar Bagh","s",[1,3],34.1461,74.87,"","Shalimar Bagh Srinagar","Famous Mughal garden.","Day 3 (Day 1 if time). About 45 min.","e"],
+["Chashme Shahi","s",[3],34.093,74.868,"","Chashme Shahi Srinagar","Small terraced garden with a spring.","Day 3. About 30 min.","e"],
+["Pari Mahal","s",[3],34.0805,74.87,"w","Pari Mahal Srinagar","Terraced garden, city views. Access varies.","Day 3. About 30 min.","e"],
+["Hazratbal Shrine","s",[3],34.1288,74.839,"","Hazratbal Shrine Srinagar","Well-known shrine by the lake.","Day 3. About 30 min. Dress modestly.","i"],
+["Jamia Masjid","s",[3],34.0987,74.8133,"","Jamia Masjid Srinagar","Historic mosque in Downtown.","Day 3. About 30 min.","i"],
+["Lal Chowk","s",[3],34.0716,74.81,"","Lal Chowk Srinagar","Main shopping area.","Day 3 late afternoon.","i"],
+["Shikara ride, Dal Lake","a",[6],34.0905,74.835,"p","Shikara ride Dal Lake Srinagar ghat","Quote says 1 hr free, but Day 6 says extra. Ask agent.","Day 6. About 1 hr.","c"],
+["Nigeen Lake","s",[6],34.118,74.812,"","Nigeen Lake Srinagar","Quieter lake. Houseboat may be here.","Day 6.","i"],
+["Sonmarg Valley","s",[2],34.303,75.293,"","Sonamarg Jammu Kashmir","Meadow of Gold, snow views if weather allows.","Day 2. 2.5 to 3 hrs each way.","i"],
+["Sindh River viewpoint","s",[2],34.301,75.288,"p","Sindh River viewpoint Sonamarg","River valley views.","Day 2. About 30 min.","i"],
+["Thajiwas Glacier area","s",[2],34.295,75.325,"wp","Thajiwas Glacier Sonamarg","Likely hard to reach after snowfall.","Day 2. Depends on road and weather.","x"],
+["Sonmarg market and photo points","s",[2],34.3025,75.2945,"p","Sonamarg market","Local market and photo spots.","Day 2 free time.","i"],
+["Pony rides and local vehicles, Sonmarg","a",[2],34.304,75.296,"op","Sonamarg pony stand","Optional, weather permitting.","Day 2.","x"],
+["Doodhpathri Meadows","s",[4],33.8667,74.5833,"w","Doodhpathri Jammu Kashmir","Meadow with pine hills. Full-day trip.","Day 4. About 2 hrs each way.","i"],
+["Shaliganga River","s",[4],33.878,74.575,"p","Shaliganga river Doodhpathri","Stream beside the meadow.","Day 4.","i"],
+["Tangnar Valley viewpoints","s",[4],33.855,74.6,"p","Tangnar Doodhpathri","Viewpoints on the way. Exact spot not confirmed.","Day 4.","i"],
+["Pony rides, Doodhpathri","a",[4],33.867,74.585,"op","Doodhpathri pony stand","Optional.","Day 4.","x"],
+["Gulmarg Meadows","s",[5],34.0484,74.3805,"","Gulmarg Meadows","Big snow meadow, mountain viewpoints.","Day 5 afternoon and evening.","i"],
+["St. Mary's Church","s",[5],34.05,74.379,"w","St. Mary's Church Gulmarg","Old stone church. Opening can vary.","Day 5. About 20 min.","i"],
+["Maharani Temple","s",[5],34.052,74.3865,"","Maharani Temple Gulmarg","Hilltop temple.","Day 5. About 30 min.","e"],
+["Gulmarg Golf Course area","s",[5],34.047,74.383,"p","Gulmarg Golf Course","Open snowy ground with views.","Day 5.","i"],
+["Gulmarg Gondola (Phase 1)","a",[5],34.0465,74.376,"o","Gulmarg Gondola","Optional cable car. Tickets can sell out.","Day 5. Needs good weather. 2 to 3 hrs with queues.","x"],
+["Gondola Phase 2 (Apharwat)","a",[5],34.029,74.36,"owp","Apharwat Peak Gulmarg","Upper station with snow views. Optional.","Day 5. Weather dependent.","x"],
+["Snow activities and pony rides","a",[5],34.0495,74.38,"owp","Gulmarg snow activities","Only if there is snowfall.","Day 5.","x"],
+["Pampore saffron fields","s",[7],33.978,74.935,"wp","Pampore saffron fields","On the way. Flowers are Oct to Nov, so may be bare in Dec.","Day 7. Quick stop.","i"],
+["Awantipora ruins","s",[7],33.921,75.019,"","Awantipora ruins Avantipur","Ruins of old temples.","Day 7. About 30 min.","e"],
+["Apple orchards (area)","s",[7],33.82,75.09,"wp","Apple orchards Anantnag","Roadside orchards, subject to season.","Day 7.","i"],
+["Lidder River viewpoints","s",[7,8],34.018,75.319,"p","Lidder River Pahalgam","River views near Pahalgam.","Day 7 evening, Day 8.","i"],
+["Pahalgam main market","s",[7,8],34.0165,75.314,"","Pahalgam Market","Shops and local food.","Free time Day 7 and 8.","i"],
+["Betaab Valley","s",[8],34.069,75.338,"wp","Betaab Valley Pahalgam","Scenic valley. Snow may block access.","Day 8. May need local union taxi.","x"],
+["Aru Valley","s",[8],34.093,75.265,"wp","Aru Valley Pahalgam","Mountain valley. Snow may block access.","Day 8. May need local union taxi.","x"],
+["Chandanwari","s",[8],34.086,75.39,"wp","Chandanwari Pahalgam","Snow point. Access depends on weather.","Day 8. May need local union taxi.","x"],
+["Ahdoos Hotel (Kashmiri food)","f",[1,2,3,4],34.072,74.807,"op","Ahdoos Hotel Srinagar","My suggestion, not in your package. Lunch is not included.","Any lunch in Srinagar.","x"],
+["Mughal Darbar (Kashmiri food)","f",[3],34.0735,74.81,"op","Mughal Darbar Srinagar","My suggestion, not in your package.","Day 3 lunch near Lal Chowk.","x"]
+].map((r,i)=>({i,n:r[0],t:r[1],d:r[2],la:r[3],lo:r[4],f:r[5],q:r[6],s:r[7],tm:r[8],c:r[9]}));
+S.sort((a,b)=>a.d[0]-b.d[0]||a.i-b.i);
+const map=L.map("map").setView([34.1,74.9],9);
+const osm=L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
+const sat=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:18,attribution:"Esri"});
+const topo=L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",{maxZoom:17,attribution:"OpenTopoMap"});
+L.control.layers({Street:osm,Satellite:sat,Terrain:topo}).addTo(map);
+const grp=L.layerGroup().addTo(map),$=id=>document.getElementById(id),G="https://www.google.com/maps/";
+let day=0,off=new Set();
+function icon(s){const t=T[s.t];return L.divIcon({className:"",html:`<div class="pin${s.f.includes("o")?" opt":""}" style="background:${t[1]}">${t[2]}</div>`,iconSize:[34,34],iconAnchor:[17,17]})}
+function show(){grp.clearLayers();const pts=[];$("list").innerHTML="";
+S.filter(s=>(!day||s.d.includes(day))&&!off.has(s.t)).forEach(s=>{
+const m=L.marker([s.la,s.lo],{icon:icon(s),title:s.n}).addTo(grp);m.on("click",()=>pick(s));pts.push([s.la,s.lo]);
+const c=document.createElement("div");c.className="card";
+c.innerHTML=`<i style="background:${T[s.t][1]}"></i><b>${s.n}</b><small>Day ${s.d.join(", ")} · ${T[s.t][0]}${s.f.includes("o")?" · Optional":""}</small>`;
+c.onclick=()=>pick(s);$("list").append(c)});
+if(pts.length)map.fitBounds(pts,{padding:[40,40],maxZoom:12})}
+function pick(s){const t=T[s.t],f=s.f;map.flyTo([s.la,s.lo],14);
+$("info").innerHTML=`<h2>${s.n}</h2><p><span class="tag" style="background:${t[1]}">${t[0]}</span> <span class="tag">Day ${s.d.join(", ")}</span>${f.includes("o")?' <span class="tag o">Optional</span>':""}${f.includes("w")?' <span class="tag w">Weather / access</span>':""}</p>
+<dl><dt>What to see</dt><dd>${s.s}</dd><dt>Timing</dt><dd>${s.tm}</dd><dt>Cost</dt><dd>${C[s.c]}</dd></dl>
+${f.includes("p")?'<p class="note">Pin is approximate. Use the Google button for the exact spot.</p>':""}
+<a class="btn" target="_blank" href="${G}search/?api=1&query=${encodeURIComponent(s.q)}">Open in Google Maps</a><a class="btn alt" target="_blank" href="${G}dir/?api=1&destination=${encodeURIComponent(s.q)}">Directions</a>`;
+$("info").scrollIntoView({block:"nearest",behavior:"smooth"})}
+D.forEach((n,i)=>{const b=document.createElement("button");b.textContent=i?"Day "+n:"All days";if(!i)b.className="on";
+b.onclick=()=>{day=i;[...$("days").children].forEach((x,j)=>x.className=j==i?"on":"");show()};$("days").append(b)});
+Object.entries(T).forEach(([k,t])=>{const b=document.createElement("button");b.innerHTML=`<span style="color:${t[1]}">●</span> ${t[0]}`;
+b.onclick=()=>{off.has(k)?off.delete(k):off.add(k);b.className=off.has(k)?"off":"";show()};$("leg").append(b)});
+show();
+</script></body></html>
